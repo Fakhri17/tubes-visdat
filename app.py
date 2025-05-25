@@ -135,7 +135,7 @@ with tab1:
   filtered_df = df[(df['Year'] >= start_year) & (df['Year'] <= end_year)]
 
   # Buat plot
-  fig, ax = plt.subplots(figsize=(8, 4))  # Reduced from (12, 6) to (8, 4)
+  fig, ax = plt.subplots(figsize=(12, 8))  # Reduced from (12, 6) to (8, 4)
   sns.histplot(data=filtered_df, x="Year", bins=40, kde=False, ax=ax)
   
   plt.title(f'Distribusi Tahun Rilis Game ({start_year}-{end_year})', fontsize=12, fontweight='bold')  # Reduced font size

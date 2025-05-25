@@ -68,9 +68,13 @@ Kemungkinan Visualisasi Data
 """)
 
 # Load Data
-df = pd.read_csv("vgsales.csv")  # Pastikan file ini tersedia saat deploy
-st.subheader("Dataset Penjualan Video Game")
-st.dataframe(df)
+try:
+    df = pd.read_csv("vgsales.csv")  # Pastikan file ini tersedia saat deploy
+    st.subheader("Dataset Penjualan Video Game")
+    st.dataframe(df)
+except FileNotFoundError:
+    st.error("File 'vgsales.csv' tidak ditemukan. Pastikan file ini tersedia di direktori yang sama dengan aplikasi.")
+    st.stop()
 
 # Display dataset info
 st.subheader("Informasi Dataset")

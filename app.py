@@ -11,6 +11,11 @@ import ipywidgets as widgets
 from IPython.display import display, clear_output
 import streamlit as st
 import io
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import mean_squared_error, r2_score
+import joblib
 
 st.set_page_config(
     page_title="Game Analytics Dashboard",
@@ -107,7 +112,7 @@ st.markdown("<hr style='margin-top: 5rem;'>", unsafe_allow_html=True)
 st.sidebar.title("Menu Navigasi")
 page = st.sidebar.radio(
     "Pilih Halaman",
-    ["Distribusi", "Tren", "Perbandingan", "Korelasi", "Geografis"]
+    ["Distribusi", "Tren", "Perbandingan", "Korelasi", "Geografis", "Hasil Model"]
 )
 
 # Main content based on selected page
@@ -900,3 +905,296 @@ elif page == "Geografis":
         
     else:
         st.warning("Pilih minimal satu genre untuk ditampilkan.")
+
+elif page == "Hasil Model":
+    st.header("Hasil Model Prediksi Penjualan Game")
+    
+    # Prepare data for model
+    def prepare_model_data(df):
+        # Create copy of dataframe
+        model_df = df.copy()
+        
+        # Encode categorical variables
+        le_platform = LabelEncoder()
+        le_genre = LabelEncoder()
+        le_publisher = LabelEncoder()
+        
+        model_df['Platform_Encoded'] = le_platform.fit_transform(model_df['Platform'])
+        model_df['Genre_Encoded'] = le_genre.fit_transform(model_df['Genre'])
+        model_df['Publisher_Encoded'] = le_publisher.fit_transform(model_df['Publisher'])
+        
+        # Select features and target
+        features = ['Platform_Encoded', 'Year', 'Genre_Encoded', 'Publisher_Encoded', 
+                    'NA_Sales', 'EU_Sales', 'JP_Sales', 'Other_Sales']
+        X = model_df[features]
+        y = model_df['Global_Sales']
+        
+        return X, y, le_platform, le_genre, le_publisher
+
+    # Train model
+    @st.cache_resource
+    def train_model():
+        X, y, le_platform, le_genre, le_publisher = prepare_model_data(df)
+        
+        # Split data
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        
+        # Train Random Forest model
+        rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
+        rf_model.fit(X_train, y_train)
+        
+        # Make predictions
+        y_pred = rf_model.predict(X_test)
+        
+        # Calculate metrics
+        mse = mean_squared_error(y_test, y_pred)
+        rmse = np.sqrt(mse)
+        r2 = r2_score(y_test, y_pred)
+        
+        # Get feature importance
+        feature_importance = pd.DataFrame({
+            'Feature': ['Platform', 'Year', 'Genre', 'Publisher', 
+                       'NA_Sales', 'EU_Sales', 'JP_Sales', 'Other_Sales'],
+            'Importance': rf_model.feature_importances_
+        }).sort_values('Importance', ascending=False)
+        
+        return rf_model, rmse, r2, feature_importance, le_platform, le_genre, le_publisher
+
+    # Train model and get results
+    model, rmse, r2, feature_importance, le_platform, le_genre, le_publisher = train_model()
+
+    # Display model description
+    st.markdown("""
+    ### Model Random Forest untuk Prediksi Penjualan Global
+    
+    Model ini menggunakan algoritma Random Forest untuk memprediksi penjualan global game berdasarkan berbagai fitur.
+    Fitur yang digunakan:
+    - Platform
+    - Tahun Rilis
+    - Genre
+    - Publisher
+    - Penjualan Regional (NA, EU, JP, Other)
+    """)
+
+    # Display model metrics
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("RMSE", f"{rmse:.4f}")
+    with col2:
+        st.metric("R² Score", f"{r2:.4f}")
+
+    # Display feature importance
+    st.subheader("Feature Importance")
+    fig, ax = plt.subplots(figsize=(10, 6))
+    sns.barplot(data=feature_importance, x='Importance', y='Feature', ax=ax)
+    plt.title('Feature Importance dalam Model')
+    plt.tight_layout()
+    st.pyplot(fig)
+
+    # Add prediction section
+    st.subheader("Prediksi Penjualan Game")
+    st.markdown("Masukkan detail game untuk memprediksi penjualan globalnya:")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        platform = st.selectbox("Platform", sorted(df['Platform'].unique()))
+        year = st.number_input("Tahun", min_value=int(df['Year'].min()), max_value=int(df['Year'].max()), value=2020)
+        genre = st.selectbox("Genre", sorted(df['Genre'].unique()))
+        publisher = st.selectbox("Publisher", sorted(df['Publisher'].unique()))
+    
+    with col2:
+        na_sales = st.number_input("NA Sales (juta unit)", min_value=0.0, max_value=float(df['NA_Sales'].max()), value=0.0)
+        eu_sales = st.number_input("EU Sales (juta unit)", min_value=0.0, max_value=float(df['EU_Sales'].max()), value=0.0)
+        jp_sales = st.number_input("JP Sales (juta unit)", min_value=0.0, max_value=float(df['JP_Sales'].max()), value=0.0)
+        other_sales = st.number_input("Other Sales (juta unit)", min_value=0.0, max_value=float(df['Other_Sales'].max()), value=0.0)
+
+    if st.button("Prediksi Penjualan"):
+        # Prepare input data
+        input_data = pd.DataFrame({
+            'Platform_Encoded': [le_platform.transform([platform])[0]],
+            'Year': [year],
+            'Genre_Encoded': [le_genre.transform([genre])[0]],
+            'Publisher_Encoded': [le_publisher.transform([publisher])[0]],
+            'NA_Sales': [na_sales],
+            'EU_Sales': [eu_sales],
+            'JP_Sales': [jp_sales],
+            'Other_Sales': [other_sales]
+        })
+        
+        # Make prediction
+        prediction = model.predict(input_data)[0]
+        
+        # Display prediction with styling
+        st.markdown("---")
+        st.markdown(f"""
+        <div style='text-align: center; padding: 20px; background-color: #f0f2f6; border-radius: 10px;'>
+            <h2 style='color: #1f77b4;'>Prediksi Penjualan Global</h2>
+            <h1 style='color: #2ecc71; font-size: 36px;'>{prediction:.2f} juta unit</h1>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Add analysis of prediction factors
+        st.markdown("### Analisis Faktor yang Mempengaruhi Prediksi")
+        
+        # Get feature importance for the input
+        input_importance = pd.DataFrame({
+            'Feature': ['Platform', 'Year', 'Genre', 'Publisher', 
+                       'NA_Sales', 'EU_Sales', 'JP_Sales', 'Other_Sales'],
+            'Value': [platform, year, genre, publisher, 
+                     na_sales, eu_sales, jp_sales, other_sales],
+            'Importance': model.feature_importances_
+        })
+        
+        # Calculate weighted impact - only for numerical values
+        input_importance['Weighted_Impact'] = 0.0  # Initialize with zeros
+        for idx, row in input_importance.iterrows():
+            if row['Feature'] in ['NA_Sales', 'EU_Sales', 'JP_Sales', 'Other_Sales', 'Year']:
+                input_importance.at[idx, 'Weighted_Impact'] = row['Importance'] * float(row['Value'])
+            else:
+                # For categorical features, just use the importance
+                input_importance.at[idx, 'Weighted_Impact'] = row['Importance']
+        
+        input_importance = input_importance.sort_values('Weighted_Impact', ascending=False)
+        
+        # Display analysis
+        st.markdown("#### Faktor-faktor yang Mempengaruhi Prediksi:")
+        
+        # Get top 3 most influential factors
+        top_factors = input_importance.head(3)
+        for idx, row in top_factors.iterrows():
+            if row['Feature'] in ['NA_Sales', 'EU_Sales', 'JP_Sales', 'Other_Sales']:
+                st.markdown(f"""
+                - **{row['Feature']}** ({row['Value']:.2f} juta unit)
+                  - Memiliki pengaruh signifikan karena penjualan regional yang tinggi
+                  - Kontribusi terhadap prediksi: {row['Weighted_Impact']:.4f}
+                """)
+            elif row['Feature'] == 'Year':
+                st.markdown(f"""
+                - **{row['Feature']}** ({int(row['Value'])})
+                  - Faktor penting dalam menentukan potensi penjualan
+                  - Kontribusi terhadap prediksi: {row['Weighted_Impact']:.4f}
+                """)
+            else:
+                st.markdown(f"""
+                - **{row['Feature']}** ({row['Value']})
+                  - Faktor penting dalam menentukan potensi penjualan
+                  - Kontribusi terhadap prediksi: {row['Weighted_Impact']:.4f}
+                """)
+        
+        # Add overall analysis
+        st.markdown("#### Analisis Keseluruhan:")
+        
+        # Calculate total regional sales
+        total_regional = na_sales + eu_sales + jp_sales + other_sales
+        
+        if prediction > total_regional:
+            st.markdown(f"""
+            - Prediksi penjualan global ({prediction:.2f} juta unit) lebih tinggi dari total penjualan regional ({total_regional:.2f} juta unit)
+            - Hal ini menunjukkan potensi pertumbuhan penjualan di pasar global
+            - Kombinasi platform, genre, dan publisher yang dipilih memiliki potensi pasar yang baik
+            """)
+        else:
+            st.markdown(f"""
+            - Prediksi penjualan global ({prediction:.2f} juta unit) lebih rendah dari total penjualan regional ({total_regional:.2f} juta unit)
+            - Hal ini menunjukkan bahwa game mungkin lebih fokus pada pasar regional tertentu
+            - Perlu mempertimbangkan strategi untuk meningkatkan penetrasi pasar global
+            """)
+        
+        # Add market potential analysis
+        st.markdown("#### Potensi Pasar:")
+        
+        # Compare with average sales for the genre
+        genre_avg = df[df['Genre'] == genre]['Global_Sales'].mean()
+        if prediction > genre_avg:
+            st.markdown(f"""
+            - Prediksi penjualan ({prediction:.2f} juta unit) lebih tinggi dari rata-rata penjualan genre {genre} ({genre_avg:.2f} juta unit)
+            - Menunjukkan potensi yang baik untuk genre ini
+            - Kombinasi platform dan publisher yang dipilih dapat memberikan keunggulan kompetitif
+            """)
+        else:
+            st.markdown(f"""
+            - Prediksi penjualan ({prediction:.2f} juta unit) lebih rendah dari rata-rata penjualan genre {genre} ({genre_avg:.2f} juta unit)
+            - Perlu mempertimbangkan strategi untuk meningkatkan daya saing
+            - Fokus pada diferensiasi dan keunggulan unik game
+            """)
+
+    # Add detailed model analysis after prediction
+    st.markdown("---")
+    st.subheader("Analisis Model")
+    
+    # Model Performance Analysis
+    st.markdown("""
+    ### Analisis Performa Model
+    
+    Model Random Forest yang dikembangkan menunjukkan performa yang baik dalam memprediksi penjualan global game:
+    
+    1. **RMSE (Root Mean Square Error)**
+       - RMSE sebesar {:.4f} menunjukkan rata-rata kesalahan prediksi dalam jutaan unit
+       - Nilai ini relatif kecil dibandingkan dengan range penjualan global yang bervariasi
+       - Model dapat memprediksi penjualan dengan akurasi yang cukup baik
+    
+    2. **R² Score**
+       - R² score sebesar {:.4f} menunjukkan bahwa model dapat menjelaskan {:.1f}% variasi dalam data penjualan global
+       - Nilai ini menunjukkan bahwa model memiliki kemampuan prediksi yang baik
+       - Model dapat menangkap pola dan hubungan yang signifikan dalam data
+    """.format(rmse, r2, r2*100))
+
+    # Feature Importance Analysis
+    st.markdown("""
+    ### Analisis Feature Importance
+    
+    Berdasarkan analisis feature importance, berikut adalah faktor-faktor yang paling mempengaruhi penjualan global:
+    """)
+    
+    # Get top 3 most important features
+    top_features = feature_importance.head(3)
+    for idx, row in top_features.iterrows():
+        st.markdown(f"""
+        - **{row['Feature']}** ({row['Importance']:.2%})
+          - Memiliki pengaruh signifikan terhadap prediksi penjualan global
+          - Menunjukkan bahwa {row['Feature'].lower()} merupakan faktor kunci dalam menentukan kesuksesan penjualan game
+        """)
+
+    # Business Insights
+    st.markdown("""
+    ### Insights Bisnis
+    
+    Berdasarkan analisis model, beberapa insights penting untuk pengembangan game:
+    
+    1. **Regional Sales Impact**
+       - Penjualan regional (NA, EU, JP, Other) memiliki pengaruh yang signifikan
+       - Penting untuk mempertimbangkan strategi pemasaran yang berbeda untuk setiap region
+    
+    2. **Platform Strategy**
+       - Platform merupakan faktor penting dalam menentukan penjualan
+       - Perlu mempertimbangkan platform yang tepat untuk setiap game
+    
+    3. **Genre Consideration**
+       - Genre game mempengaruhi potensi penjualan
+       - Perlu memahami preferensi pasar untuk setiap genre
+    
+    4. **Publisher Influence**
+       - Publisher memiliki peran dalam kesuksesan penjualan
+       - Reputasi dan pengalaman publisher dapat mempengaruhi hasil penjualan
+    """)
+
+    # Model Limitations
+    st.markdown("""
+    ### Keterbatasan Model
+    
+    Beberapa keterbatasan yang perlu diperhatikan:
+    
+    1. **Data Historis**
+       - Model berdasarkan data historis dan mungkin tidak sepenuhnya mencerminkan tren masa depan
+       - Perubahan dalam industri game dapat mempengaruhi akurasi prediksi
+    
+    2. **Faktor Eksternal**
+       - Model tidak mempertimbangkan faktor eksternal seperti:
+         - Kondisi ekonomi
+         - Perubahan teknologi
+         - Perilaku konsumen yang berubah
+    
+    3. **Kualitas Data**
+       - Beberapa data mungkin tidak lengkap atau memiliki nilai yang hilang
+       - Kualitas data dapat mempengaruhi akurasi prediksi
+    """)

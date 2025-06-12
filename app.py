@@ -18,12 +18,12 @@ from sklearn.metrics import mean_squared_error, r2_score
 import joblib
 
 st.set_page_config(
-    page_title="Game Analytics Dashboard",
+    page_title="Analisis Penjualan Video Game",
     page_icon="🎮",
     layout="wide"
 )
 
-st.title("Visualisasi Penjualan Video Game")
+st.title("Visualisasi dan Analisis Penjualan Video Game")
 st.markdown("""
 ## Informasi Kelompok
 1. Fakhri Alauddin ( 1203220131 )

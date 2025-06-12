@@ -30,99 +30,78 @@ st.markdown("""
 2. M Riyan Akbari ( 1203220130 )
 3. Elan Agum Wicaksono ( 1203220005 )
 4. Ferry Oktariansyah ( 1203220006 )
-
-
-
-### About Dataset
-This dataset contains video game sales data across different platforms, genres, and regions, making it valuable for various analytical and business use cases.
-
-- Total Records = 16,598
-- Total Collumn = 11
-
-- Rank (int): Rank of the game in terms of sales.
-- Name (str): Name of the video game.
-- Platform (str): Gaming platform (e.g., Wii, NES, GB).
-- Year (float): Release year (some missing values).
-- Genre (str): Game genre (e.g., Sports, Racing, Role-Playing).
-- Publisher (str): Publisher of the game (some missing values).
-- NA_Sales, EU_Sales, JP_Sales, Other_Sales, Global_Sales (float): Sales in different regions (millions of copies). 
 """)
 
-st.markdown("""
-Kemungkinan Visualisasi Data
-
-1. Visualisasi Distribusi
-- Histogram Tahun Rilis: Distribusi tahun rilis game untuk melihat tren produksi game
-- Pie Chart Genre: Persentase game berdasarkan genre
-- Pie Chart Platform: Distribusi game berdasarkan platform
-
-2. Visualisasi Tren
-- Line Chart Penjualan Global per Tahun: Tren penjualan global dari tahun ke tahun
-- Line Chart Penjualan per Region per Tahun: Perbandingan tren penjualan di NA, EU, JP, dan Other
-
-- Tren Genre Populer: Perkembangan genre populer dari waktu ke waktu
-
-3. Visualisasi Perbandingan
-- Bar Chart Publisher Teratas: 10 publisher dengan penjualan global tertinggi
-- Bar Chart Game Terlaris: 20 game dengan penjualan global tertinggi
-- Bar Chart Platform Terlaris: Perbandingan penjualan antar platform
-
-4. Visualisasi Korelasi
-- Scatter Plot Penjualan vs Tahun: korelasi antara tahun rilis dan penjualan
-- Scatter Plot Penjualan Antar Region: Hubungan penjualan antara region berbeda
-
-5. Visualisasi Geografis
-- Bar Chart: Visualisasi distribusi daerah penjualan
-
-""")
-
-# Load Data
 @st.cache_data
 def load_data():
-    df = pd.read_csv("vgsales.csv")  # Pastikan file ini tersedia saat deploy
+    df = pd.read_csv("vgsales.csv")
     return df
 
-df = load_data()
+if 'preprocessed_df' not in st.session_state:
+    st.session_state.preprocessed_df = None
 
-# Display dataset info
-st.subheader("Informasi Dataset")
-buffer = io.StringIO()
-df.info(buf=buffer)
-st.text(buffer.getvalue())
-
-# Display missing values
-st.subheader("Jumlah Data Kosong (Sebelum Pembersihan)")
-st.write(df.isna().sum())
-
-# Remove missing values
-df.dropna(inplace=True)
-
-# Display missing values after cleaning
-st.subheader("Jumlah Data Kosong (Setelah Pembersihan)")
-st.write(df.isna().sum())
-
-# Display duplicate count
-st.subheader("Jumlah Data Duplikat")
-st.write(f"Total duplikat: {df.duplicated().sum()}")
-
-# margin top
-st.markdown("<hr style='margin-top: 5rem;'>", unsafe_allow_html=True)
-
-# Sidebar navigation
 st.sidebar.title("Menu Navigasi")
+
+with st.sidebar.expander("About Dataset", expanded=False):
+    st.markdown("""
+    Dataset berisi data penjualan video game dengan:
+    - 16,598 records
+    - 11 kolom
+    
+    **Kolom Utama:**
+    - Rank (int): Peringkat penjualan game
+    - Name (str): Nama video game
+    - Platform (str): Platform gaming (Wii, NES, GB, dll)
+    - Year (float): Tahun rilis (beberapa nilai kosong)
+    - Genre (str): Genre game (Sports, Racing, Role-Playing, dll)
+    - Publisher (str): Publisher game (beberapa nilai kosong)
+    - NA_Sales (float): Penjualan di Amerika Utara (juta unit)
+    - EU_Sales (float): Penjualan di Eropa (juta unit)
+    - JP_Sales (float): Penjualan di Jepang (juta unit)
+    - Other_Sales (float): Penjualan di region lain (juta unit)
+    - Global_Sales (float): Total penjualan global (juta unit)
+    """)
+
 page = st.sidebar.radio(
     "Pilih Halaman",
-    ["Distribusi", "Tren", "Perbandingan", "Korelasi", "Geografis", "Hasil Model"]
+    ["Preprocessing", "Distribusi", "Tren", "Perbandingan", "Korelasi", "Geografis", "Hasil Model"]
 )
 
-# Main content based on selected page
+if page == "Preprocessing":
+    st.header("Preprocessing Data")
+    
+    df = load_data()
+    
+    st.subheader("Informasi Dataset")
+    buffer = io.StringIO()
+    df.info(buf=buffer)
+    st.text(buffer.getvalue())
+
+    st.subheader("Jumlah Data Kosong (Sebelum Pembersihan)")
+    st.write(df.isna().sum())
+
+    df_cleaned = df.dropna()
+
+    st.subheader("Jumlah Data Kosong (Setelah Pembersihan)")
+    st.write(df_cleaned.isna().sum())
+
+    st.subheader("Jumlah Data Duplikat")
+    st.write(f"Total duplikat: {df_cleaned.duplicated().sum()}")
+
+    st.session_state.preprocessed_df = df_cleaned
+    st.success("Data berhasil diproses dan siap digunakan!")
+
+else:
+    if st.session_state.preprocessed_df is None:
+        st.warning("Silakan lakukan preprocessing data terlebih dahulu di halaman Preprocessing!")
+    else:
+        df = st.session_state.preprocessed_df
+
 if page == "Distribusi":
     st.header("Visualisasi Distribusi")
 
-    # Visualisasi Distribusi Tahun Rilis Game
     st.subheader("Distribusi Tahun Rilis Game")
     
-    # Buat sliders untuk rentang tahun
     col1, col2 = st.columns(2)
     with col1:
         start_year = st.slider("Tahun Awal", 
@@ -135,7 +114,6 @@ if page == "Distribusi":
                          int(df['Year'].max()), 
                          int(df['Year'].max()))
 
-    # Tambah input untuk tahun perbandingan
     col3, col4 = st.columns(2)
     with col3:
         compare_year1 = st.number_input("Tahun Pembanding 1", 
@@ -148,10 +126,8 @@ if page == "Distribusi":
                                     max_value=int(df['Year'].max()),
                                     value=2009)
 
-    # Filter data berdasarkan rentang tahun
     filtered_df = df[(df['Year'] >= start_year) & (df['Year'] <= end_year)]
 
-    # Buat plot dengan style asli
     fig, ax = plt.subplots(figsize=(12, 8))
     sns.histplot(data=filtered_df, x="Year", bins=40, kde=False, ax=ax)
     
@@ -159,7 +135,6 @@ if page == "Distribusi":
     plt.xlabel('Tahun Rilis', fontsize=10)
     plt.ylabel('Jumlah Game', fontsize=10)
 
-    # Tambah informasi tahun puncak
     if not filtered_df.empty:
         peak_year = filtered_df['Year'].value_counts().idxmax()
         peak_year_count = filtered_df['Year'].value_counts().max()
@@ -168,7 +143,6 @@ if page == "Distribusi":
                 fontsize=8,
                 bbox=dict(boxstyle="round,pad=0.3", fc='yellow', alpha=0.3))
 
-    # Tambah perbandingan tahun
     year1_count = df[df['Year'] == compare_year1].shape[0]
     year2_count = df[df['Year'] == compare_year2].shape[0]
     if year1_count > 0:
@@ -181,13 +155,10 @@ if page == "Distribusi":
     plt.tight_layout()
     st.pyplot(fig)
 
-    # margin top
     st.markdown("<hr style='margin-top: 5rem;'>", unsafe_allow_html=True)
 
-    # Visualisasi Distribusi Genre
     st.subheader("Distribusi Genre Game")
 
-    # Controls for genre visualization
     col1, col2, col3 = st.columns(3)
     with col1:
         max_genres = st.slider("Maksimum Genre", 5, len(df['Genre'].unique()), len(df['Genre'].unique()))
@@ -196,14 +167,11 @@ if page == "Distribusi":
     with col3:
         highlight_genre = st.selectbox("Highlight Genre", ['None'] + sorted(df['Genre'].unique().tolist()))
 
-    # Create pie chart
     fig, ax = plt.subplots(figsize=(12, 8))
 
-    # Calculate genre distribution
     genre_counts = df['Genre'].value_counts()
     genre_percent = (genre_counts / genre_counts.sum() * 100).round(1)
 
-    # Apply filters
     if max_genres < len(genre_counts):
         main_genres = genre_counts.iloc[:max_genres-1]
         other_count = genre_counts.iloc[max_genres-1:].sum()
@@ -220,14 +188,12 @@ if page == "Distribusi":
                        index=list(main_genres.index) + ['Lainnya'])
             genre_percent = (genre_counts / genre_counts.sum() * 100).round(1)
 
-    # Create labels and colors 
     labels = [f'{genre}: {count} ({percent}%)' for genre, count, percent in 
             zip(genre_counts.index, genre_counts, genre_percent)]
 
     colors = plt.cm.Pastel1(np.linspace(0, 1, len(genre_counts)))
     explode = [0.1 if genre == highlight_genre else 0 for genre in genre_counts.index]
 
-    # Create pie chart
     plt.pie(genre_counts, explode=explode, labels=None, colors=colors,
         autopct=lambda p: f'{p:.1f}%' if p > 3 else '',
         shadow=True, startangle=90)
@@ -238,32 +204,25 @@ if page == "Distribusi":
     plt.tight_layout()
     st.pyplot(fig)
 
-    # margin top
     st.markdown("<hr style='margin-top: 5rem;'>", unsafe_allow_html=True)
 
-    # Visualisasi Distribusi Platform
     st.subheader("Distribusi Platform Game")
 
-    # Create sliders and dropdown for platform distribution
     col1, col2 = st.columns(2)
     with col1:
         max_platforms = st.slider("Jumlah Platform", 5, 15, 10)
     with col2:
         min_percent = st.slider("Persentase Minimum", 0.0, 5.0, 0.0, 0.1)
 
-    # Get top platforms for dropdown
     top_platforms = df['Platform'].value_counts().head(10).index.tolist()
     top_platforms.sort()
     highlight_platform = st.selectbox("Highlight Platform", ['None'] + top_platforms + ['Others'])
 
-    # Create pie chart
     fig, ax = plt.subplots(figsize=(12, 8))
 
-    # Calculate platform distribution
     platform_counts = df['Platform'].value_counts()
     platform_percent = (platform_counts / platform_counts.sum() * 100).round(1)
 
-    # Apply filters
     if max_platforms < len(platform_counts):
         main_platforms = platform_counts.iloc[:max_platforms-1]
         other_count = platform_counts.iloc[max_platforms-1:].sum()
@@ -280,14 +239,12 @@ if page == "Distribusi":
                                     index=list(main_platforms.index) + ['Lainnya'])
             platform_percent = (platform_counts / platform_counts.sum() * 100).round(1)
 
-    # Create labels and colors
     labels = [f'{platform}: {count} ({percent}%)' for platform, count, percent in
             zip(platform_counts.index, platform_counts, platform_percent)]
 
     colors = plt.cm.Pastel1(np.linspace(0, 1, len(platform_counts)))
     explode = [0.1 if platform == highlight_platform else 0 for platform in platform_counts.index]
 
-    # Create pie chart
     plt.pie(platform_counts, explode=explode, labels=None, colors=colors,
             autopct=lambda p: f'{p:.1f}%' if p > 3 else '',
             shadow=True, startangle=90)
@@ -301,7 +258,6 @@ if page == "Distribusi":
 elif page == "Tren":
     st.header("Visualisasi Tren")
 
-    # Create year range slider
     df_grouped = df.groupby('Year')['Global_Sales'].sum().reset_index()
     min_year = int(df_grouped['Year'].min())
     max_year = int(df_grouped['Year'].max())
@@ -312,7 +268,6 @@ elif page == "Tren":
     with col2:
         end_year = st.slider('Tahun Akhir', min_year+1, max_year, max_year)
 
-    # Create the plot
     fig, ax = plt.subplots(figsize=(12, 7))
     
     filtered_df = df_grouped[(df_grouped['Year'] >= start_year) & (df_grouped['Year'] <= end_year)]
@@ -342,13 +297,10 @@ elif page == "Tren":
     plt.tight_layout()
     st.pyplot(fig)
 
-    # margin top
     st.markdown("<hr style='margin-top: 5rem;'>", unsafe_allow_html=True)
 
-    # Visualisasi Tren Penjualan per Region per Tahun
     st.subheader("Tren Penjualan per Region per Tahun")
     
-    # Create year range slider
     df_grouped_region = df.groupby('Year')[['NA_Sales', 'EU_Sales', 'JP_Sales', 'Other_Sales']].sum().reset_index()
     min_year = int(df_grouped_region['Year'].min())
     max_year = int(df_grouped_region['Year'].max())
@@ -359,7 +311,6 @@ elif page == "Tren":
     with col2:
         end_year_region = st.slider('Tahun Akhir', min_year+1, max_year, max_year, key='region_end')
 
-    # Region selection
     regions = {
         'NA_Sales': 'Amerika Utara',
         'EU_Sales': 'Eropa', 
@@ -375,7 +326,6 @@ elif page == "Tren":
     )
 
     if selected_regions:
-        # Create the plot
         fig, ax = plt.subplots(figsize=(14, 8))
         
         df_filtered = df_grouped_region[(df_grouped_region['Year'] >= start_year_region) & 
@@ -423,18 +373,14 @@ elif page == "Tren":
         plt.tight_layout()
         st.pyplot(fig)
 
-    # margin top
     st.markdown("<hr style='margin-top: 5rem;'>", unsafe_allow_html=True)
 
-    # Visualisasi Tren Genre Populer
     st.subheader("Tren Genre Populer")
 
-    # Create year range slider
     df_grouped_genre = df.groupby('Year')['Genre'].value_counts().reset_index()
     min_year = int(df_grouped_genre['Year'].min())
     max_year = int(df_grouped_genre['Year'].max())
     
-    # Create year range slider
     year_range = st.slider(
         "Pilih Rentang Tahun",
         min_value=min_year,
@@ -443,20 +389,17 @@ elif page == "Tren":
         step=1
     )
     
-    # Create genre multiselect
     all_genres = sorted(df['Genre'].unique())
     selected_genres = st.multiselect(
         "Pilih Genre",
         options=all_genres,
-        default=all_genres[:5]  # Default select first 5 genres
+        default=all_genres[:5]
     )
     
     if selected_genres:
-        # Filter data based on selected year range
         df_filtered = df[(df['Year'] >= year_range[0]) & (df['Year'] <= year_range[1])]
         df_filtered = df_filtered[df_filtered['Genre'].isin(selected_genres)]
         
-        # Create heatmap
         fig, ax = plt.subplots(figsize=(16, 10))
         df_grouped_genre = df_filtered.groupby(['Year', 'Genre']).size().unstack(fill_value=0)
         
@@ -490,11 +433,9 @@ elif page == "Perbandingan":
 
     st.subheader("Top 10 Publisher dengan Penjualan Global Tertinggi")
 
-    # Add checkbox for all years
     show_all_years = st.checkbox("Tampilkan Semua Tahun", key="show_all_years_1")
 
     if not show_all_years:
-        # Create year range slider
         year_range = st.slider(
             "Pilih Rentang Tahun",
             min_value=int(df['Year'].min()),
@@ -503,36 +444,30 @@ elif page == "Perbandingan":
             step=1
         )
         
-        # Filter data based on selected year range
         df_filtered = df[(df['Year'] >= year_range[0]) & (df['Year'] <= year_range[1])]
         title_year_range = f"({year_range[0]}-{year_range[1]})"
     else:
         df_filtered = df
         title_year_range = "(Semua Tahun)"
     
-    # Add select all genres checkbox
     all_genres = sorted(df['Genre'].unique())
     select_all_genres = st.checkbox("Pilih Semua Genre", key="select_all_genres_1")
     
     if select_all_genres:
         selected_genres = all_genres
     else:
-        # Add multiselect for genres
         selected_genres = st.multiselect(
             "Pilih Genre",
             options=all_genres,
-            default=all_genres[:5]  # Default select first 5 genres
+            default=all_genres[:5]
         )
     
     if selected_genres:
-        # Filter data based on genres
         df_filtered = df_filtered[df_filtered['Genre'].isin(selected_genres)]
         title_genres = f" - Genre: {', '.join(selected_genres)}"
         
-        # Get top 10 publishers
         top_publishers = df_filtered.groupby('Publisher')['Global_Sales'].sum().sort_values(ascending=False).head(10).reset_index()
         
-        # Create bar plot
         fig, ax = plt.subplots(figsize=(14, 8))
         sns.barplot(data=top_publishers, x='Global_Sales', y='Publisher', hue='Publisher', palette='viridis', ax=ax)
         
@@ -540,7 +475,6 @@ elif page == "Perbandingan":
         plt.xlabel('Total Global Sales (juta unit)')
         plt.ylabel('Publisher')
         
-        # Add value labels on bars
         for p in ax.patches:
             ax.annotate(f"{p.get_width():.1f}", (p.get_width()+0.3, p.get_y() + 0.5), va='center')
             
@@ -549,17 +483,13 @@ elif page == "Perbandingan":
     else:
         st.warning("Pilih minimal satu genre untuk ditampilkan.")
 
-
-    # margin top
     st.markdown("<hr style='margin-top: 5rem;'>", unsafe_allow_html=True)
 
     st.subheader("Top 20 Game Terlaris Secara Global")
 
-    # Add checkbox for all years
     show_all_years = st.checkbox("Tampilkan Semua Tahun", key="show_all_years_2")
 
     if not show_all_years:
-        # Create year range slider
         year_range = st.slider(
             "Pilih Rentang Tahun",
             min_value=int(df['Year'].min()),
@@ -569,17 +499,14 @@ elif page == "Perbandingan":
             key="year_range_2"
         )
         
-        # Filter data based on selected year range
         df_filtered = df[(df['Year'] >= year_range[0]) & (df['Year'] <= year_range[1])]
         title_year_range = f"({year_range[0]}-{year_range[1]})"
     else:
         df_filtered = df
         title_year_range = "(Semua Tahun)"
 
-    # Get top 20 games
     top_games = df_filtered[['Name', 'Global_Sales']].sort_values(by='Global_Sales', ascending=False).head(20)
     
-    # Create bar plot
     fig, ax = plt.subplots(figsize=(14, 10))
     sns.barplot(data=top_games, x='Global_Sales', y='Name', hue='Name', palette='mako', ax=ax)
     
@@ -587,23 +514,19 @@ elif page == "Perbandingan":
     plt.xlabel('Total Global Sales (juta unit)')
     plt.ylabel('Nama Game')
     
-    # Add value labels on bars
     for p in ax.patches:
         ax.annotate(f"{p.get_width():.1f}", (p.get_width()+0.2, p.get_y() + 0.5), va='center')
         
     plt.tight_layout()
     st.pyplot(fig)
 
-    # margin top
     st.markdown("<hr style='margin-top: 5rem;'>", unsafe_allow_html=True)
 
     st.subheader("Total Penjualan Global per Platform")
 
-    # Add checkbox for all years
     show_all_years = st.checkbox("Tampilkan Semua Tahun", key="show_all_years_platform")
 
     if not show_all_years:
-        # Create year range slider
         year_range = st.slider(
             "Pilih Rentang Tahun",
             min_value=int(df['Year'].min()),
@@ -613,38 +536,32 @@ elif page == "Perbandingan":
             key="year_range_platform"
         )
         
-        # Filter data based on selected year range
         df_filtered = df[(df['Year'] >= year_range[0]) & (df['Year'] <= year_range[1])]
         title_year_range = f"({year_range[0]}-{year_range[1]})"
     else:
         df_filtered = df
         title_year_range = "(Semua Tahun)"
 
-    # Add select all genres checkbox
     all_genres = sorted(df['Genre'].unique())
     select_all_genres = st.checkbox("Pilih Semua Genre", key="select_all_genres_platform")
     
     if select_all_genres:
         selected_genres = all_genres
     else:
-        # Add multiselect for genres
         selected_genres = st.multiselect(
             "Pilih Genre",
             options=all_genres,
             key="genre_select_platform"
         )
 
-    # Filter by selected genres
     if selected_genres:
         df_filtered = df_filtered[df_filtered['Genre'].isin(selected_genres)]
         title_genres = f" - Genre: {', '.join(selected_genres)}"
     else:
         title_genres = ""
 
-    # Get platform sales data
     platform_sales = df_filtered.groupby('Platform')['Global_Sales'].sum().sort_values(ascending=False).reset_index()
 
-    # Create bar plot
     fig, ax = plt.subplots(figsize=(14, 6))
     sns.barplot(
         data=platform_sales,
@@ -661,24 +578,20 @@ elif page == "Perbandingan":
     plt.ylabel('Total Global Sales (juta unit)')
     plt.xticks(rotation=45)
 
-    # Add value labels on bars
     for p in ax.patches:
         ax.annotate(f"{p.get_height():.1f}", (p.get_x() + p.get_width() / 2, p.get_height() + 0.2), ha='center')
 
     plt.tight_layout()
     st.pyplot(fig)
 
-
 elif page == "Korelasi":
     st.header("Visualisasi Korelasi")
 
     st.subheader("Korelasi antara Tahun Rilis dan Penjualan Global")
 
-    # Add checkbox for all years
     show_all_years = st.checkbox("Tampilkan Semua Tahun", key="show_all_years_correlation")
 
     if not show_all_years:
-        # Create year range slider
         year_range = st.slider(
             "Pilih Rentang Tahun",
             min_value=int(df['Year'].min()),
@@ -687,14 +600,12 @@ elif page == "Korelasi":
             step=1
         )
         
-        # Filter data based on selected year range
         df_filtered = df[(df['Year'] >= year_range[0]) & (df['Year'] <= year_range[1])]
         title_year_range = f"({year_range[0]}-{year_range[1]})"
     else:
         df_filtered = df
         title_year_range = "(Semua Tahun)"
 
-    # Create genre multiselect with select all checkbox
     all_genres = sorted(df['Genre'].unique())
     select_all_genres = st.checkbox("Pilih Semua Genre", key="select_all_genres")
     
@@ -704,15 +615,13 @@ elif page == "Korelasi":
         selected_genres = st.multiselect(
             "Pilih Genre",
             options=all_genres,
-            default=all_genres[:5]  # Default select first 5 genres
+            default=all_genres[:5]
         )
 
     if selected_genres:
-        # Filter data based on genres
         df_filtered = df_filtered[df_filtered['Genre'].isin(selected_genres)]
         title_genres = f" - Genre: {', '.join(selected_genres)}"
 
-        # Create scatter plot
         fig, ax = plt.subplots(figsize=(12, 8))
         sns.scatterplot(
             x="Year",
@@ -727,7 +636,6 @@ elif page == "Korelasi":
             ax=ax
         )
 
-        # Add regression line
         sns.regplot(
             x="Year",
             y="Global_Sales",
@@ -738,7 +646,6 @@ elif page == "Korelasi":
             ax=ax
         )
 
-        # Annotate top 5 games
         top_games = df_filtered.nlargest(5, 'Global_Sales')
         for idx, row in top_games.iterrows():
             ax.annotate(
@@ -759,12 +666,10 @@ elif page == "Korelasi":
     else:
         st.warning("Pilih minimal satu genre untuk ditampilkan.")
 
-    # margin top
     st.markdown("<hr style='margin-top: 5rem;'>", unsafe_allow_html=True)
 
     st.subheader("Korelasi antara Penjualan Global dan Penjualan di Region")
 
-    # Create scatter plot
     fig, ax = plt.subplots(figsize=(14, 10))
 
     scatter = sns.scatterplot(
@@ -825,11 +730,9 @@ elif page == "Geografis":
 
     st.subheader("Total Penjualan Global per Negara")
 
-    # Add checkbox for all years
     show_all_years = st.checkbox("Tampilkan Semua Tahun", key="show_all_years_geo")
 
     if not show_all_years:
-        # Create year range slider
         year_range = st.slider(
             "Pilih Rentang Tahun",
             min_value=int(df['Year'].min()),
@@ -839,44 +742,37 @@ elif page == "Geografis":
             key="year_range_geo"
         )
         
-        # Filter data based on selected year range
         df_filtered = df[(df['Year'] >= year_range[0]) & (df['Year'] <= year_range[1])]
         title_year_range = f"({year_range[0]}-{year_range[1]})"
     else:
         df_filtered = df
         title_year_range = "(Semua Tahun)"
 
-    # Add select all genres checkbox
     all_genres = sorted(df['Genre'].unique())
     select_all_genres = st.checkbox("Pilih Semua Genre", key="select_all_genres_geo")
     
     if select_all_genres:
         selected_genres = all_genres
     else:
-        # Add multiselect for genres
         selected_genres = st.multiselect(
             "Pilih Genre",
             options=all_genres,
-            default=all_genres[:5],  # Default select first 5 genres
+            default=all_genres[:5],
             key="genre_select_geo"
         )
 
     if selected_genres:
-        # Filter data based on genres
         df_filtered = df_filtered[df_filtered['Genre'].isin(selected_genres)]
         title_genres = f" - Genre: {', '.join(selected_genres)}"
         
-        # Create figure with subplots
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 8))
         
-        # Plot 1: Regional Sales Comparison
         regional_sales = df_filtered[['NA_Sales', 'EU_Sales', 'JP_Sales', 'Other_Sales']].sum()
         colors = ['#2ecc71', '#3498db', '#e74c3c', '#f1c40f']
         
         ax1.pie(regional_sales, labels=regional_sales.index, autopct='%1.1f%%', colors=colors)
         ax1.set_title(f'Distribusi Penjualan Regional {title_year_range}', fontsize=14)
         
-        # Plot 2: Regional Sales Trend
         yearly_sales = df_filtered.groupby('Year')[['NA_Sales', 'EU_Sales', 'JP_Sales', 'Other_Sales']].sum()
         
         for region, color in zip(yearly_sales.columns, colors):
@@ -891,10 +787,8 @@ elif page == "Geografis":
         plt.tight_layout()
         st.pyplot(fig)
         
-        # Additional insights
         st.subheader("Analisis Regional")
         
-        # Calculate regional statistics
         regional_stats = pd.DataFrame({
             'Total Penjualan': regional_sales,
             'Persentase': (regional_sales / regional_sales.sum() * 100).round(1),
@@ -909,12 +803,9 @@ elif page == "Geografis":
 elif page == "Hasil Model":
     st.header("Hasil Model Prediksi Penjualan Game")
     
-    # Prepare data for model
     def prepare_model_data(df):
-        # Create copy of dataframe
         model_df = df.copy()
         
-        # Encode categorical variables
         le_platform = LabelEncoder()
         le_genre = LabelEncoder()
         le_publisher = LabelEncoder()
@@ -923,7 +814,6 @@ elif page == "Hasil Model":
         model_df['Genre_Encoded'] = le_genre.fit_transform(model_df['Genre'])
         model_df['Publisher_Encoded'] = le_publisher.fit_transform(model_df['Publisher'])
         
-        # Select features and target
         features = ['Platform_Encoded', 'Year', 'Genre_Encoded', 'Publisher_Encoded', 
                     'NA_Sales', 'EU_Sales', 'JP_Sales', 'Other_Sales']
         X = model_df[features]
@@ -931,27 +821,21 @@ elif page == "Hasil Model":
         
         return X, y, le_platform, le_genre, le_publisher
 
-    # Train model
     @st.cache_resource
     def train_model():
         X, y, le_platform, le_genre, le_publisher = prepare_model_data(df)
         
-        # Split data
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
         
-        # Train Random Forest model
         rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
         rf_model.fit(X_train, y_train)
         
-        # Make predictions
         y_pred = rf_model.predict(X_test)
         
-        # Calculate metrics
         mse = mean_squared_error(y_test, y_pred)
         rmse = np.sqrt(mse)
         r2 = r2_score(y_test, y_pred)
         
-        # Get feature importance
         feature_importance = pd.DataFrame({
             'Feature': ['Platform', 'Year', 'Genre', 'Publisher', 
                        'NA_Sales', 'EU_Sales', 'JP_Sales', 'Other_Sales'],
@@ -960,38 +844,103 @@ elif page == "Hasil Model":
         
         return rf_model, rmse, r2, feature_importance, le_platform, le_genre, le_publisher
 
-    # Train model and get results
     model, rmse, r2, feature_importance, le_platform, le_genre, le_publisher = train_model()
 
-    # Display model description
-    st.markdown("""
-    ### Model Random Forest untuk Prediksi Penjualan Global
     
-    Model ini menggunakan algoritma Random Forest untuk memprediksi penjualan global game berdasarkan berbagai fitur.
-    Fitur yang digunakan:
-    - Platform
-    - Tahun Rilis
-    - Genre
-    - Publisher
-    - Penjualan Regional (NA, EU, JP, Other)
-    """)
-
-    # Display model metrics
+    st.subheader("Analisis Model")
+    
+    st.markdown("### Analisis Performa Model")
+    
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("RMSE", f"{rmse:.4f}")
+        st.metric("RMSE", f"{rmse:.4f} juta unit")
+        st.markdown("""
+        - Rata-rata kesalahan prediksi
+        - Nilai relatif kecil dibanding range penjualan
+        - Model dapat memprediksi dengan akurasi baik
+        """)
+    
     with col2:
         st.metric("R² Score", f"{r2:.4f}")
+        st.markdown(f"""
+        - Model dapat menjelaskan {r2*100:.1f}% variasi data
+        - Menunjukkan kemampuan prediksi yang baik
+        - Dapat menangkap pola dan hubungan signifikan
+        """)
 
-    # Display feature importance
-    st.subheader("Feature Importance")
-    fig, ax = plt.subplots(figsize=(10, 6))
-    sns.barplot(data=feature_importance, x='Importance', y='Feature', ax=ax)
-    plt.title('Feature Importance dalam Model')
-    plt.tight_layout()
-    st.pyplot(fig)
+    st.markdown("### Analisis Feature Importance")
+    
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        fig, ax = plt.subplots(figsize=(10, 6))
+        sns.barplot(data=feature_importance, x='Importance', y='Feature', ax=ax)
+        plt.title('Feature Importance dalam Model')
+        plt.tight_layout()
+        st.pyplot(fig)
+    
+    with col2:
+        top_features = feature_importance.head(3)
+        for idx, row in top_features.iterrows():
+            st.markdown(f"""
+            **{row['Feature']}** ({row['Importance']:.2%})
+            - Faktor kunci dalam penjualan game
+            - Memiliki pengaruh signifikan
+            """)
 
-    # Add prediction section
+    st.markdown("### Insights Bisnis")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("""
+        **Regional Sales Impact**
+        - Penjualan regional memiliki pengaruh signifikan
+        - Perlu strategi pemasaran berbeda per region
+        
+        **Platform Strategy**
+        - Platform merupakan faktor penting
+        - Pilih platform yang tepat untuk setiap game
+        """)
+    
+    with col2:
+        st.markdown("""
+        **Genre Consideration**
+        - Genre mempengaruhi potensi penjualan
+        - Pahami preferensi pasar per genre
+        
+        **Publisher Influence**
+        - Publisher berperan dalam kesuksesan
+        - Reputasi dan pengalaman berpengaruh
+        """)
+
+    st.markdown("### Keterbatasan Model")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("""
+        **Data Historis**
+        - Berdasarkan data historis
+        - Perubahan industri dapat mempengaruhi akurasi
+        
+        **Faktor Eksternal**
+        - Tidak mempertimbangkan:
+          - Kondisi ekonomi
+          - Perubahan teknologi
+          - Perilaku konsumen
+        """)
+    
+    with col2:
+        st.markdown("""
+        **Kualitas Data**
+        - Beberapa data tidak lengkap
+        - Nilai yang hilang dapat mempengaruhi akurasi
+        
+        **Perlu Diperhatikan**
+        - Model perlu update berkala
+        - Validasi dengan data terbaru
+        """)
+
+    st.markdown("---")
+
     st.subheader("Prediksi Penjualan Game")
     st.markdown("Masukkan detail game untuk memprediksi penjualan globalnya:")
 
@@ -1009,7 +958,6 @@ elif page == "Hasil Model":
         other_sales = st.number_input("Other Sales (juta unit)", min_value=0.0, max_value=float(df['Other_Sales'].max()), value=0.0)
 
     if st.button("Prediksi Penjualan"):
-        # Prepare input data
         input_data = pd.DataFrame({
             'Platform_Encoded': [le_platform.transform([platform])[0]],
             'Year': [year],
@@ -1021,10 +969,8 @@ elif page == "Hasil Model":
             'Other_Sales': [other_sales]
         })
         
-        # Make prediction
         prediction = model.predict(input_data)[0]
         
-        # Display prediction with styling
         st.markdown("---")
         st.markdown(f"""
         <div style='text-align: center; padding: 20px; background-color: #f0f2f6; border-radius: 10px;'>
@@ -1033,10 +979,8 @@ elif page == "Hasil Model":
         </div>
         """, unsafe_allow_html=True)
 
-        # Add analysis of prediction factors
         st.markdown("### Analisis Faktor yang Mempengaruhi Prediksi")
         
-        # Get feature importance for the input
         input_importance = pd.DataFrame({
             'Feature': ['Platform', 'Year', 'Genre', 'Publisher', 
                        'NA_Sales', 'EU_Sales', 'JP_Sales', 'Other_Sales'],
@@ -1045,156 +989,89 @@ elif page == "Hasil Model":
             'Importance': model.feature_importances_
         })
         
-        # Calculate weighted impact - only for numerical values
-        input_importance['Weighted_Impact'] = 0.0  # Initialize with zeros
+        input_importance['Weighted_Impact'] = 0.0
         for idx, row in input_importance.iterrows():
             if row['Feature'] in ['NA_Sales', 'EU_Sales', 'JP_Sales', 'Other_Sales', 'Year']:
                 input_importance.at[idx, 'Weighted_Impact'] = row['Importance'] * float(row['Value'])
             else:
-                # For categorical features, just use the importance
                 input_importance.at[idx, 'Weighted_Impact'] = row['Importance']
         
         input_importance = input_importance.sort_values('Weighted_Impact', ascending=False)
         
-        # Display analysis
         st.markdown("#### Faktor-faktor yang Mempengaruhi Prediksi:")
         
-        # Get top 3 most influential factors
-        top_factors = input_importance.head(3)
-        for idx, row in top_factors.iterrows():
-            if row['Feature'] in ['NA_Sales', 'EU_Sales', 'JP_Sales', 'Other_Sales']:
-                st.markdown(f"""
-                - **{row['Feature']}** ({row['Value']:.2f} juta unit)
-                  - Memiliki pengaruh signifikan karena penjualan regional yang tinggi
-                  - Kontribusi terhadap prediksi: {row['Weighted_Impact']:.4f}
-                """)
-            elif row['Feature'] == 'Year':
-                st.markdown(f"""
-                - **{row['Feature']}** ({int(row['Value'])})
-                  - Faktor penting dalam menentukan potensi penjualan
-                  - Kontribusi terhadap prediksi: {row['Weighted_Impact']:.4f}
-                """)
-            else:
-                st.markdown(f"""
-                - **{row['Feature']}** ({row['Value']})
-                  - Faktor penting dalam menentukan potensi penjualan
-                  - Kontribusi terhadap prediksi: {row['Weighted_Impact']:.4f}
-                """)
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            top_factors = input_importance.head(3)
+            for idx, row in top_factors.iterrows():
+                if row['Feature'] in ['NA_Sales', 'EU_Sales', 'JP_Sales', 'Other_Sales']:
+                    st.markdown(f"""
+                    **{row['Feature']}** ({row['Value']:.2f} juta unit)
+                    - Pengaruh: {row['Weighted_Impact']:.4f}
+                    - Penjualan regional yang tinggi memberikan kontribusi signifikan
+                    """)
+                elif row['Feature'] == 'Year':
+                    st.markdown(f"""
+                    **{row['Feature']}** ({int(row['Value'])})
+                    - Pengaruh: {row['Weighted_Impact']:.4f}
+                    - Tahun rilis mempengaruhi potensi penjualan
+                    """)
+                else:
+                    st.markdown(f"""
+                    **{row['Feature']}** ({row['Value']})
+                    - Pengaruh: {row['Weighted_Impact']:.4f}
+                    - Faktor penting dalam menentukan potensi penjualan
+                    """)
         
-        # Add overall analysis
+        with col2:
+            fig, ax = plt.subplots(figsize=(6, 8))
+            sns.barplot(data=input_importance, y='Feature', x='Weighted_Impact', ax=ax)
+            plt.title('Pengaruh Faktor terhadap Prediksi')
+            plt.xlabel('Pengaruh')
+            plt.tight_layout()
+            st.pyplot(fig)
+
         st.markdown("#### Analisis Keseluruhan:")
-        
-        # Calculate total regional sales
         total_regional = na_sales + eu_sales + jp_sales + other_sales
         
-        if prediction > total_regional:
-            st.markdown(f"""
-            - Prediksi penjualan global ({prediction:.2f} juta unit) lebih tinggi dari total penjualan regional ({total_regional:.2f} juta unit)
-            - Hal ini menunjukkan potensi pertumbuhan penjualan di pasar global
-            - Kombinasi platform, genre, dan publisher yang dipilih memiliki potensi pasar yang baik
-            """)
-        else:
-            st.markdown(f"""
-            - Prediksi penjualan global ({prediction:.2f} juta unit) lebih rendah dari total penjualan regional ({total_regional:.2f} juta unit)
-            - Hal ini menunjukkan bahwa game mungkin lebih fokus pada pasar regional tertentu
-            - Perlu mempertimbangkan strategi untuk meningkatkan penetrasi pasar global
-            """)
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Prediksi Penjualan Global", f"{prediction:.2f} juta unit")
+            st.metric("Total Penjualan Regional", f"{total_regional:.2f} juta unit")
         
-        # Add market potential analysis
+        with col2:
+            if prediction > total_regional:
+                st.markdown("""
+                **Potensi Pertumbuhan Tinggi**
+                - Prediksi lebih tinggi dari penjualan regional
+                - Menunjukkan potensi pertumbuhan yang baik di pasar global
+                """)
+            else:
+                st.markdown("""
+                **Perlu Strategi Pasar**
+                - Prediksi lebih rendah dari penjualan regional
+                - Perlu strategi untuk meningkatkan penetrasi pasar global
+                """)
+
         st.markdown("#### Potensi Pasar:")
-        
-        # Compare with average sales for the genre
         genre_avg = df[df['Genre'] == genre]['Global_Sales'].mean()
-        if prediction > genre_avg:
-            st.markdown(f"""
-            - Prediksi penjualan ({prediction:.2f} juta unit) lebih tinggi dari rata-rata penjualan genre {genre} ({genre_avg:.2f} juta unit)
-            - Menunjukkan potensi yang baik untuk genre ini
-            - Kombinasi platform dan publisher yang dipilih dapat memberikan keunggulan kompetitif
-            """)
-        else:
-            st.markdown(f"""
-            - Prediksi penjualan ({prediction:.2f} juta unit) lebih rendah dari rata-rata penjualan genre {genre} ({genre_avg:.2f} juta unit)
-            - Perlu mempertimbangkan strategi untuk meningkatkan daya saing
-            - Fokus pada diferensiasi dan keunggulan unik game
-            """)
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Rata-rata Penjualan Genre", f"{genre_avg:.2f} juta unit")
+        
+        with col2:
+            if prediction > genre_avg:
+                st.markdown("""
+                **Di Atas Rata-rata Genre**
+                - Prediksi menunjukkan potensi yang baik
+                - Kombinasi platform dan publisher yang tepat
+                """)
+            else:
+                st.markdown("""
+                **Perlu Diferensiasi**
+                - Perlu fokus pada diferensiasi
+                - Kembangkan keunggulan unik game
+                """)
 
-    # Add detailed model analysis after prediction
-    st.markdown("---")
-    st.subheader("Analisis Model")
     
-    # Model Performance Analysis
-    st.markdown("""
-    ### Analisis Performa Model
-    
-    Model Random Forest yang dikembangkan menunjukkan performa yang baik dalam memprediksi penjualan global game:
-    
-    1. **RMSE (Root Mean Square Error)**
-       - RMSE sebesar {:.4f} menunjukkan rata-rata kesalahan prediksi dalam jutaan unit
-       - Nilai ini relatif kecil dibandingkan dengan range penjualan global yang bervariasi
-       - Model dapat memprediksi penjualan dengan akurasi yang cukup baik
-    
-    2. **R² Score**
-       - R² score sebesar {:.4f} menunjukkan bahwa model dapat menjelaskan {:.1f}% variasi dalam data penjualan global
-       - Nilai ini menunjukkan bahwa model memiliki kemampuan prediksi yang baik
-       - Model dapat menangkap pola dan hubungan yang signifikan dalam data
-    """.format(rmse, r2, r2*100))
-
-    # Feature Importance Analysis
-    st.markdown("""
-    ### Analisis Feature Importance
-    
-    Berdasarkan analisis feature importance, berikut adalah faktor-faktor yang paling mempengaruhi penjualan global:
-    """)
-    
-    # Get top 3 most important features
-    top_features = feature_importance.head(3)
-    for idx, row in top_features.iterrows():
-        st.markdown(f"""
-        - **{row['Feature']}** ({row['Importance']:.2%})
-          - Memiliki pengaruh signifikan terhadap prediksi penjualan global
-          - Menunjukkan bahwa {row['Feature'].lower()} merupakan faktor kunci dalam menentukan kesuksesan penjualan game
-        """)
-
-    # Business Insights
-    st.markdown("""
-    ### Insights Bisnis
-    
-    Berdasarkan analisis model, beberapa insights penting untuk pengembangan game:
-    
-    1. **Regional Sales Impact**
-       - Penjualan regional (NA, EU, JP, Other) memiliki pengaruh yang signifikan
-       - Penting untuk mempertimbangkan strategi pemasaran yang berbeda untuk setiap region
-    
-    2. **Platform Strategy**
-       - Platform merupakan faktor penting dalam menentukan penjualan
-       - Perlu mempertimbangkan platform yang tepat untuk setiap game
-    
-    3. **Genre Consideration**
-       - Genre game mempengaruhi potensi penjualan
-       - Perlu memahami preferensi pasar untuk setiap genre
-    
-    4. **Publisher Influence**
-       - Publisher memiliki peran dalam kesuksesan penjualan
-       - Reputasi dan pengalaman publisher dapat mempengaruhi hasil penjualan
-    """)
-
-    # Model Limitations
-    st.markdown("""
-    ### Keterbatasan Model
-    
-    Beberapa keterbatasan yang perlu diperhatikan:
-    
-    1. **Data Historis**
-       - Model berdasarkan data historis dan mungkin tidak sepenuhnya mencerminkan tren masa depan
-       - Perubahan dalam industri game dapat mempengaruhi akurasi prediksi
-    
-    2. **Faktor Eksternal**
-       - Model tidak mempertimbangkan faktor eksternal seperti:
-         - Kondisi ekonomi
-         - Perubahan teknologi
-         - Perilaku konsumen yang berubah
-    
-    3. **Kualitas Data**
-       - Beberapa data mungkin tidak lengkap atau memiliki nilai yang hilang
-       - Kualitas data dapat mempengaruhi akurasi prediksi
-    """)

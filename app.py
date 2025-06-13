@@ -806,6 +806,7 @@ elif page == "Hasil Model":
     def prepare_model_data(df):
         model_df = df.copy()
         
+        # Encode categorical variables
         le_platform = LabelEncoder()
         le_genre = LabelEncoder()
         le_publisher = LabelEncoder()
@@ -814,8 +815,9 @@ elif page == "Hasil Model":
         model_df['Genre_Encoded'] = le_genre.fit_transform(model_df['Genre'])
         model_df['Publisher_Encoded'] = le_publisher.fit_transform(model_df['Publisher'])
         
+        # Select features for prediction
         features = ['Platform_Encoded', 'Year', 'Genre_Encoded', 'Publisher_Encoded', 
-                    'NA_Sales', 'EU_Sales', 'JP_Sales', 'Other_Sales']
+                   'NA_Sales', 'EU_Sales', 'JP_Sales', 'Other_Sales']
         X = model_df[features]
         y = model_df['Global_Sales']
         
@@ -825,17 +827,26 @@ elif page == "Hasil Model":
     def train_model():
         X, y, le_platform, le_genre, le_publisher = prepare_model_data(df)
         
+        # Split data
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
         
-        rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
+        # Train Random Forest model
+        rf_model = RandomForestRegressor(
+            n_estimators=200,
+            max_depth=10,
+            min_samples_split=5,
+            min_samples_leaf=2,
+            random_state=42
+        )
         rf_model.fit(X_train, y_train)
         
+        # Evaluate model
         y_pred = rf_model.predict(X_test)
-        
         mse = mean_squared_error(y_test, y_pred)
         rmse = np.sqrt(mse)
         r2 = r2_score(y_test, y_pred)
         
+        # Get feature importance
         feature_importance = pd.DataFrame({
             'Feature': ['Platform', 'Year', 'Genre', 'Publisher', 
                        'NA_Sales', 'EU_Sales', 'JP_Sales', 'Other_Sales'],
@@ -846,8 +857,42 @@ elif page == "Hasil Model":
 
     model, rmse, r2, feature_importance, le_platform, le_genre, le_publisher = train_model()
 
-    
     st.subheader("Analisis Model")
+    
+    st.markdown("### Rumus dan Penjelasan Random Forest Regression")
+    
+    st.markdown("""
+    Random Forest Regression menggunakan beberapa pohon keputusan (decision trees) untuk membuat prediksi. 
+    Berikut adalah rumus dan penjelasannya:
+    
+    1. **Rumus Dasar Random Forest**:
+    ```
+    f(x) = (1/B) * Σ(b=1 to B) Tb(x)
+    ```
+    Dimana:
+    - f(x) adalah prediksi final
+    - B adalah jumlah pohon (n_estimators=200)
+    - Tb(x) adalah prediksi dari pohon ke-b
+    
+    2. **Pembentukan Pohon**:
+    - Setiap pohon dibuat dengan subset data acak (bootstrap sampling)
+    - Pada setiap node, fitur dipilih secara acak untuk split
+    - Pohon tumbuh sampai mencapai max_depth=10
+    
+    3. **Rumus Split Node**:
+    ```
+    MSE = (1/n) * Σ(yi - ŷi)²
+    ```
+    Dimana:
+    - MSE adalah Mean Squared Error
+    - yi adalah nilai aktual
+    - ŷi adalah nilai prediksi
+    
+    4. **Feature Importance**:
+    ```
+    Importance(j) = Σ(trees) [reduction in MSE due to feature j]
+    ```
+    """)
     
     st.markdown("### Analisis Performa Model")
     
@@ -855,17 +900,17 @@ elif page == "Hasil Model":
     with col1:
         st.metric("RMSE", f"{rmse:.4f} juta unit")
         st.markdown("""
-        - Rata-rata kesalahan prediksi
-        - Nilai relatif kecil dibanding range penjualan
-        - Model dapat memprediksi dengan akurasi baik
+        - Root Mean Square Error menunjukkan rata-rata kesalahan prediksi
+        - Rumus RMSE: √(1/n * Σ(yi - ŷi)²)
+        - Nilai RMSE yang rendah menunjukkan model yang akurat
         """)
     
     with col2:
         st.metric("R² Score", f"{r2:.4f}")
         st.markdown(f"""
+        - R² menunjukkan proporsi variasi yang dapat dijelaskan model
+        - Rumus R²: 1 - (SSres/SStot)
         - Model dapat menjelaskan {r2*100:.1f}% variasi data
-        - Menunjukkan kemampuan prediksi yang baik
-        - Dapat menangkap pola dan hubungan signifikan
         """)
 
     st.markdown("### Analisis Feature Importance")
@@ -883,60 +928,66 @@ elif page == "Hasil Model":
         for idx, row in top_features.iterrows():
             st.markdown(f"""
             **{row['Feature']}** ({row['Importance']:.2%})
-            - Faktor kunci dalam penjualan game
-            - Memiliki pengaruh signifikan
+            - Kontribusi terhadap prediksi penjualan
+            - Dihitung berdasarkan reduksi MSE
             """)
 
-    st.markdown("### Insights Bisnis")
+    st.markdown("### Penjelasan Hasil Model")
     
     col1, col2 = st.columns(2)
     with col1:
         st.markdown("""
-        **Regional Sales Impact**
-        - Penjualan regional memiliki pengaruh signifikan
-        - Perlu strategi pemasaran berbeda per region
+        **Mekanisme Prediksi**
+        - Setiap pohon membuat prediksi independen
+        - Hasil akhir adalah rata-rata dari semua prediksi
+        - Mengurangi overfitting dengan voting
         
-        **Platform Strategy**
-        - Platform merupakan faktor penting
-        - Pilih platform yang tepat untuk setiap game
+        **Optimasi Model**
+        - n_estimators=200: Jumlah pohon optimal
+        - max_depth=10: Mencegah overfitting
+        - min_samples_split=5: Memastikan split yang signifikan
         """)
     
     with col2:
         st.markdown("""
-        **Genre Consideration**
-        - Genre mempengaruhi potensi penjualan
-        - Pahami preferensi pasar per genre
+        **Evaluasi Model**
+        - RMSE mengukur akurasi prediksi
+        - R² mengukur kemampuan model
+        - Feature importance menunjukkan kontribusi fitur
         
-        **Publisher Influence**
-        - Publisher berperan dalam kesuksesan
-        - Reputasi dan pengalaman berpengaruh
+        **Kualitas Prediksi**
+        - Model dapat menangkap pola kompleks
+        - Robust terhadap noise dalam data
+        - Dapat menangani non-linearitas
         """)
 
-    st.markdown("### Keterbatasan Model")
+    st.markdown("### Keterbatasan dan Asumsi")
     
     col1, col2 = st.columns(2)
     with col1:
         st.markdown("""
-        **Data Historis**
-        - Berdasarkan data historis
-        - Perubahan industri dapat mempengaruhi akurasi
+        **Asumsi Model**
+        - Data training mewakili populasi
+        - Fitur independen satu sama lain
+        - Tidak ada multikolinearitas
         
-        **Faktor Eksternal**
-        - Tidak mempertimbangkan:
-          - Kondisi ekonomi
-          - Perubahan teknologi
-          - Perilaku konsumen
+        **Keterbatasan**
+        - Tidak menangkap hubungan temporal
+        - Terbatas pada data historis
+        - Perlu update berkala
         """)
     
     with col2:
         st.markdown("""
-        **Kualitas Data**
-        - Beberapa data tidak lengkap
-        - Nilai yang hilang dapat mempengaruhi akurasi
+        **Validasi Model**
+        - Cross-validation untuk robust
+        - Test set untuk evaluasi final
+        - Perlu monitoring performa
         
-        **Perlu Diperhatikan**
-        - Model perlu update berkala
-        - Validasi dengan data terbaru
+        **Pengembangan**
+        - Dapat ditambah fitur baru
+        - Optimasi hyperparameter
+        - Ensemble dengan model lain
         """)
 
     st.markdown("---")
@@ -979,7 +1030,7 @@ elif page == "Hasil Model":
         </div>
         """, unsafe_allow_html=True)
 
-        st.markdown("### Analisis Faktor yang Mempengaruhi Prediksi")
+        st.markdown("### Analisis Prediksi")
         
         input_importance = pd.DataFrame({
             'Feature': ['Platform', 'Year', 'Genre', 'Publisher', 
